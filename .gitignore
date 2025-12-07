@@ -1,0 +1,32 @@
+Maven targets
+
+target/
+pom.xml.tag
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+builddirectory/
+!*.xml
+
+Log files
+
+*.log
+*.err
+*.out
+
+IDE files (VS Code)
+
+.vscode/
+
+IDE files (IntelliJ)
+
+.idea/
+*.iws
+*.iml
+*.ipr
+
+Operating System files
+
+.DS_Store
+Thumbs.db
