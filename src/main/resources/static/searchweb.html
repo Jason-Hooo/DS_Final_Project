@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>🔍 鞋子搜尋引擎 🔍</title>
+    <link rel="stylesheet" href="style.css"> </head>
+<body>
+    <div class="main-container">
+        <div class="search-box-wrapper">
+            <h1>🔍 鞋子搜尋引擎 🔍</h1>
+
+            <form id="searchForm">
+                <input type="text" id="keyword" placeholder="請輸入搜尋內容 (例如: puma speedcat)" required>
+                <button type="submit">Search!</button>
+            </form>
+            
+            <div id="loading" style="display: none; margin-top: 20px;">
+                <div class="loader"></div>
+                <p>正在啟動 Playwright 引擎並爬取資料，請稍候...</p>
+            </div>
+
+            <div id="resultsContainer" class="results-container">
+                </div>
+            
+            <p id="noResult" class="no-result" style="display: none;">沒有找到結果。</p>
+        </div>
+    </div>
+
+   <script>
+        // 這是超強防呆版的 JavaScript
+        document.getElementById('searchForm').addEventListener('submit', function(e) {
+            e.preventDefault(); 
+            
+            const keyword = document.getElementById('keyword').value;
+            const resultsContainer = document.getElementById('resultsContainer');
+            const loadingDiv = document.getElementById('loading');
+            const noResultMsg = document.getElementById('noResult');
+
+            // 初始化 UI
+            resultsContainer.innerHTML = '';
+            noResultMsg.style.display = 'none';
+            loadingDiv.style.display = 'block';
+
+            // 呼叫搜尋 API
+            console.log("正在呼叫搜尋 API: " + keyword);
+            fetch(`/api/search-tree?q=${encodeURIComponent(keyword)}&num=5&depth=2`)
+                .then(response => {
+                    if (response.status === 202) {
+                        console.log("任務已接受，開始輪詢結果...");
+                        pollResults();
+                    } else {
+                        throw new Error("API 請求失敗: " + response.status);
+                    }
+                })
+                .catch(err => {
+                    console.error("搜尋啟動失敗:", err);
+                    loadingDiv.style.display = 'none';
+                    alert("系統發生錯誤，請按 F12 查看 Console");
+                });
+        });
+
+        // 輪詢設定
+        let attempts = 0;
+        const maxAttempts = 60; // 嘗試 60 次 (共 120 秒)
+
+        function pollResults() {
+            setTimeout(() => {
+                fetch('/api/results')
+                    .then(res => res.json())
+                    .then(data => {
+                        console.log("輪詢第 " + (attempts + 1) + " 次，收到資料:", data);
+                        
+                        // 情況 A: 後端還沒準備好 (空陣列)
+                        if ((!data || data.length === 0) && attempts < maxAttempts) {
+                            attempts++;
+                            pollResults(); // 再等一次
+                        } 
+                        // 情況 B: 抓到資料了！
+                        else if (data && data.length > 0) {
+                            const loadingDiv = document.getElementById('loading');
+                            const resultsContainer = document.getElementById('resultsContainer');
+                            
+                            loadingDiv.style.display = 'none'; // 關掉轉圈圈
+
+                            // 渲染資料
+                            data.forEach(item => {
+                                const itemDiv = document.createElement('div');
+                                itemDiv.className = 'result-item';
+                                
+                                // 防呆處理：確保欄位存在
+                                const url = item.url || "無連結";
+                                // 優先顯示 score，如果沒有則顯示 aggregatedScore，再沒有就顯示 0
+                                let score = 0;
+                                if (item.score !== undefined) score = item.score;
+                                else if (item.aggregatedScore !== undefined) score = item.aggregatedScore;
+                                
+                                // 截斷過長的內容
+                                let content = item.content || "無內容";
+                                if (content.length > 100) content = content.substring(0, 100) + "...";
+
+                                itemDiv.innerHTML = `
+                                    <a href="${url}" target="_blank" class="result-title">${url}</a>
+                                    <span style="font-size:12px; color:#666;"> (分數: ${score.toFixed(2)})</span>
+                                    <p class="result-url">${url}</p>
+                                    <p style="font-size: 13px; color: #555;">${content}</p>
+                                `;
+                                resultsContainer.appendChild(itemDiv);
+                            });
+                            
+                            // 重置次數，以便下次搜尋
+                            attempts = 0;
+                        } 
+                        // 情況 C: 超時都沒結果
+                        else {
+                            document.getElementById('loading').style.display = 'none';
+                            document.getElementById('noResult').style.display = 'block';
+                            attempts = 0;
+                        }
+                    })
+                    .catch(err => {
+                        console.error("輪詢發生錯誤:", err);
+                        // 就算出錯，只要次數沒滿就繼續試
+                        if (attempts < maxAttempts) {
+                            attempts++;
+                            pollResults();
+                        }
+                    });
+            }, 2000); // 每 2 秒檢查一次
+        }
+    </script>
+</body>
+</html>
