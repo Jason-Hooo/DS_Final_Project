@@ -10,6 +10,8 @@ public class ApiMain {
     private static final String GOOGLE_API_KEY = "AIzaSyCqNnL9jwvx80f_RYkv9j6nsAhRFnAS384"; 
     private static final String GOOGLE_CX_ID = "053fe703ca8d645f3";
 
+    private static final String KEYWORD = "puma speedcat";
+
     // 定義啟動參數 (這裡保留原本設定，這對反爬蟲很重要)
     private static final List<String> LAUNCH_ARGS = Arrays.asList(
         "--disable-blink-features=AutomationControlled",
@@ -26,11 +28,11 @@ public class ApiMain {
         GoogleSearchApi searchApi = new GoogleSearchApi(GOOGLE_API_KEY, GOOGLE_CX_ID);
 
         // 定義搜尋參數
-        String searchQueryNormal = "puma speedcat" + " 評價"; 
+        String searchQueryNormal = KEYWORD + " 評價"; 
         int targetRootUrlCountNormal = 10; // 為了測試顯示效果，建議先設小一點 (例如 3~5)
         int maxDepthNormal = 1; 
 
-        String searchQueryForum = "puma speedcat" + " site:ptt.cc OR site:dcard.tw"; 
+        String searchQueryForum = KEYWORD + " site:ptt.cc OR site:dcard.tw"; 
         int targetRootUrlCountForum = 20; // 為了測試顯示效果，建議先設小一點
         int maxDepthForum = 1; 
 
@@ -72,9 +74,9 @@ public class ApiMain {
             webTrees.addAll(siteTreesNormal);
             webTrees.addAll(siteTreesForum);
 
-            // for (WebTree webTree : webTrees) {
-            //     webTree.setScore(ScoreCalculator.calculate(webTree.getContent()));
-            // }
+            for (WebTree webTree : webTrees) {
+                webTree.setScore(ScoreCalculator.calculate(webTree.getContent()));
+            }
             
 
 
