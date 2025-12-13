@@ -14,7 +14,7 @@ public class ContentExtractor {
     private final GoogleSearchApi searchApi;
     
     // 設定：每層最多抓 3 個
-    private static final int MAX_LINKS_PER_PAGE = 3; 
+    private static final int MAX_LINKS_PER_PAGE = 1; 
 
     private final AtomicInteger processedCount = new AtomicInteger(0);
     private final PageScraper scraper; 
@@ -143,3 +143,4 @@ public class ContentExtractor {
         } catch (Exception e) { return null; }
     }
 }
+

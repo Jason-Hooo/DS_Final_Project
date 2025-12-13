@@ -35,7 +35,7 @@ public class GoogleSearchApi {
             while (urlSet.size() < numResults) {
                 int numToFetch = Math.min(10, numResults - urlSet.size());
                 
-                String apiUrl = String.format("%s?key=%s&cx=%s&q=%s&start=%d&num=%d",
+                String apiUrl = String.format("%s?key=%s&cx=%s&q=%s&start=%d&num=%d&lr=lang_zh-TW&gl=tw",
                         API_ENDPOINT, apiKey, cx,
                         URLEncoder.encode(query, StandardCharsets.UTF_8), start, numToFetch);
 

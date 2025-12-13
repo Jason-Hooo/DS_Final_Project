@@ -13,11 +13,13 @@ public class WebTree {
     private String url;
     private String content; // 該頁面的純文字內容
     private List<WebTree> children; // 該頁面下的子連結 (節點)
+    private double score;
 
     public WebTree(String url) {
         this.url = url;
         this.content = null; // 預設為 null，等待爬取
         this.children = new ArrayList<>();
+        this.score = 0;
     }
 
     // --- Getter 和 Setter ---
@@ -42,4 +44,13 @@ public class WebTree {
     public void addChild(WebTree child) {
         this.children.add(child);
     }
+
+    public double getScore() {
+        return score;
+    }
+
+    public void setScore(double score) {
+        this.score = score;
+    }
+    
 }
