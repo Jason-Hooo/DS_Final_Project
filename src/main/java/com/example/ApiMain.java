@@ -4,6 +4,7 @@ import com.microsoft.playwright.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 public class ApiMain {
 
@@ -75,11 +76,13 @@ public class ApiMain {
             webTrees.addAll(siteTreesForum);
 
             for (WebTree webTree : webTrees) {
-                webTree.setScore(ScoreCalculator.calculate(webTree.getContent()));
+                webTree.setScore(ScoreCalculator.calculate(KEYWORD, webTree.getContent()));
             }
-            
-
-
+           
+            webTrees.sort(Comparator.comparingDouble(WebTree::getScore).reversed());
+            // ==================================================================================
+            //                          webTrees 已排序，webTrees 可在 web 顯示搜尋結果
+            // ==================================================================================
             
             System.out.println("\n\n==========================================");
             System.out.println("📊 爬取結果匯總 (共 " + webTrees.size() + " 個根網頁)");
