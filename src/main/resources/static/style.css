@@ -1,0 +1,106 @@
+body {
+    background-color: #99e0f4; /* 柔和的淺色背景 */
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center; /* 水平居中 */
+    align-items: flex-start; /* 頂部對齊 */
+    padding-top: 50px;
+    margin: 0;
+    min-height: 100vh;
+}
+
+.search-box-wrapper {
+    /* 附圖中淡棕色的主要內容區塊 */
+    width: 100%;
+    max-width: 500%;
+    background-color: #118cca9f; /* 淡棕色 */
+    border-radius: 15px;
+    padding: 30px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    text-align: center; 
+}
+
+h1 {
+    color: #4a3e2e; 
+    margin-bottom: 25px;
+    font-size: 28px;
+}
+
+/* 搜尋框和按鈕 */
+form {
+    display: flex;
+    margin-bottom: 30px;
+    /* align-items: stretch; */
+}
+
+input[type="text"] {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px 0 0 5px; 
+    font-size: 16px;
+    outline: none;
+}
+
+button {
+    padding: 10px 15px;
+    border: none;
+    background-color: #7b5e43; 
+    color: white;
+    cursor: pointer;
+    border-radius: 0 5px 5px 0; 
+    font-size: 16px;
+}
+
+button:hover {
+    background-color: #634b35;
+}
+
+/* 搜尋結果 */
+.results-container {
+    text-align: left; 
+}
+
+.result-item {
+    margin-bottom: 15px;
+    word-wrap: break-word; 
+}
+
+.result-title {
+    color: #007acc; /* 連結的藍色 */
+    text-decoration: none; 
+    font-size: 16px;
+    display: block;
+    line-height: 1.5;
+    font-weight: bold; /* 讓標題更突出 */
+}
+
+.result-title:hover {
+    text-decoration: underline; 
+}
+
+.result-url {
+    color: #076600; /* 綠色網址 */
+    font-size: 14px;
+    margin: 0;
+}
+
+.no-result {
+    color: #d9534f;
+    margin-top: 20px;
+}
+/* --- 新增 Loading 動畫 --- */
+.loader {
+    border: 5px solid #f3f3f3; /* Light grey */
+    border-top: 5px solid #7b5e43; /* 配合主題色 */
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 15px auto; /* 居中 */
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
