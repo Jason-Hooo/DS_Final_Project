@@ -98,6 +98,8 @@ public class ApiMain {
         port(8080);
         System.out.println("API 伺服器已啟動: http://localhost:8080");
 
+        staticFiles.location("/static");// 提供靜態檔案服務 (前端頁面)
+
         // API: 觸發搜尋與爬取
         get("/api/search-tree", (request, response) -> {
             String query = request.queryParams("q");
