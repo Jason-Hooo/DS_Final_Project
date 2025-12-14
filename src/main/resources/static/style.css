@@ -1,3 +1,6 @@
+/* =========================================
+   1. 全域設定與主要佈局
+   ========================================= */
 body {
     background-color: #eef3f8; /* 淺藍色背景 */
     font-family: Arial, sans-serif;
@@ -12,14 +15,184 @@ body {
     overflow-x: hidden;
 }
 
-/* --- 主要修改區域：搜尋外框 --- */
+/* =========================================
+   2. 背景動畫設定 (分批顯示邏輯 - 優化版)
+   ========================================= */
+
+/* 背景容器 */
+.bg-animation {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* 定義三組輪替的顯示動畫：
+   總時長 30s，分成三等份。
+   每組顯示約 25% 的時間，保留一些緩衝時間讓它們完全淡出。
+*/
+@keyframes batchVisibility3 {
+    0% { opacity: 0; }
+    5% { opacity: 1; }  /* 淡入 */
+    28% { opacity: 1; } /* 維持顯示 */
+    33% { opacity: 0; } /* 淡出，接下來的時間都是隱藏 */
+    100% { opacity: 0; }
+}
+
+.batch-container {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    opacity: 0; /* 預設隱藏 */
+}
+
+/* --- 批次容器設定 (3組輪播) --- */
+
+/* 第一組：0s ~ 10s 區間運作 */
+.batch-group-1 {
+    animation: batchVisibility3 30s infinite;
+    animation-delay: 0s;
+}
+
+/* 第二組：10s ~ 20s 區間運作 */
+.batch-group-2 {
+    animation: batchVisibility3 30s infinite;
+    animation-delay: 10s;
+}
+
+/* 第三組：20s ~ 30s 區間運作 */
+.batch-group-3 {
+    animation: batchVisibility3 30s infinite;
+    animation-delay: 20s;
+}
+
+/* --- 鞋子移動動畫 --- */
+/* --- 鞋子共通設定 --- */
+.shoe {
+    position: absolute;
+    width: 90px;
+    height: 75px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    opacity: 0.9;
+    
+    /* ★ 新增這行：強制預設就在螢幕左側外面，防止載入瞬間出現在畫面內 ★ */
+    transform: translateX(-30vw) rotate(-5deg);
+
+    /* 動畫設定 */
+    animation-name: runAcross;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-fill-mode: both; 
+    
+    will-change: transform;
+}
+
+/* 移動路徑：確保 0% 是在畫面左側外 (-15vw) */
+@keyframes runAcross {
+    /* 0% 的狀態必須跟上面 .shoe 的預設狀態一致，才不會跳動 */
+    0% { transform: translateX(-30vw) rotate(-5deg); }
+    100% { transform: translateX(120vw) rotate(5deg); }
+}
+
+/* --- 個別鞋子設定 --- */
+/* 重點修改：
+   1. animation-delay 全部改為正數 (0s ~ 5s)，確保從左邊進場。
+   2. 分散 top 位置，避免重疊。
+*/
+
+/* Group 1 (s1-s4) */
+.s1 { 
+    background-image: url('images/shoes1.png'); 
+    top: 10%; 
+    animation-duration: 10s; 
+    animation-delay: 0s; 
+}
+.s2 {
+    background-image: url('images/shoes2.png'); 
+    top: 30%; 
+    animation-duration: 12s; 
+    animation-delay: 2s; 
+    transform: scale(0.8);
+}
+.s3 { 
+    background-image: url('images/shoes3.png'); 
+    top: 60%; 
+    animation-duration: 11s; 
+    animation-delay: 1s; 
+}
+.s4 { 
+    background-image: url('images/shoes4.png'); 
+    top: 80%; 
+    animation-duration: 9s; 
+    animation-delay: 3s; 
+    transform: scale(0.7); 
+    opacity: 0.7;
+}
+
+/* Group 2 (s5-s8) */
+.s5 { 
+    background-image: url('images/shoes5.png'); 
+    top: 15%; 
+    animation-duration: 11s; 
+    animation-delay: 0s; 
+}
+.s6 { 
+    background-image: url('images/shoes6.png'); 
+    top: 45%; 
+    animation-duration: 13s; 
+    animation-delay: 1s; 
+}
+.s7 { 
+    background-image: url('images/shoes7.png'); 
+    top: 70%; 
+    animation-duration: 10s; 
+    animation-delay: 2s; 
+}
+.s8 { 
+    background-image: url('images/shoes8.png'); 
+    top: 25%; 
+    animation-duration: 12s; 
+    animation-delay: 0s; 
+}
+
+/* Group 3 (s9-s11) */
+.s9 { 
+    background-image: url('images/shoes9.png'); 
+    top: 85%; 
+    animation-duration: 14s; 
+    animation-delay: 0s; 
+}
+.s10 { 
+    background-image: url('images/shoes10.png'); 
+    top: 5%; 
+    animation-duration: 10s; 
+    animation-delay: 2s; 
+}
+.s11 { 
+    background-image: url('images/shoes11.png'); 
+    top: 55%; 
+    animation-duration: 11s; 
+    animation-delay: 1s; 
+}
+
+/* =========================================
+   3. 搜尋框區域 (Search Box Wrapper)
+   ========================================= */
 .search-box-wrapper {
     width: 95%;
     max-width: 1200px;
-    margin: 0 auto; /* 使用 auto 來水平置中 */
+    margin: 0 auto;
     background-color: #d6ecff;
     border-radius: 30px;
-    padding: 35px 35px; /* 減少上下內距 */
+    padding: 35px 35px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
     text-align: center;
     box-sizing: border-box;
@@ -30,44 +203,63 @@ body {
     align-items: center;
 }
 
-/* --- 主要修改區域：標題 --- */
 h1 {
     color: #0b3d91; 
-    margin-bottom: 60px; /* 增加標題與搜尋框的距離 */
-    font-size: 42px; /* 字體加大 */
+    margin-bottom: 60px;
+    font-size: 42px;
     font-weight: bold;
     letter-spacing: 2px;
     text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.2);
 }
 
-/* --- 主要修改區域：搜尋框與按鈕 --- */
+.search-icon {
+    width: 30px;
+    height: 30px;
+    vertical-align: middle;
+    margin: 0 10px 0 0;
+    position: relative;
+    top: -2px;
+}
+
+h1 .search-icon:last-child {
+    margin: 0 0 0 10px;
+    top: -2px;
+}
+
+/* =========================================
+   4. 表單與輸入元件
+   ========================================= */
 form {
     display: flex;
     margin: 0 30px 0 30px;
-    max-width: 2000px; /* 增加搜尋欄寬度 */
+    max-width: 2000px;
     width: 900px;
-    box-sizing: border-box; /* 確保內邊距不影響總寬度 */
+    box-sizing: border-box;
 }
 
 input[type="text"] {
     flex: 1;
     padding: 15px 30px;
     border: none;
-    border-radius: 50px 0 0 50px; /* 左邊圓角 (膠囊狀) */
+    border-radius: 50px 0 0 50px;
     font-size: 20px;
     outline: none;
     min-width: 0;
     box-sizing: border-box;
-    height: 64px; /* 稍微加高 */
+    height: 64px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
+input[type="text"]:focus {
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1), 0 4px 12px rgba(0,0,0,0.15);
+}
+
 button {
-    padding: 0 45px; /* 按鈕寬一點 */
+    padding: 0 45px;
     background-color: #2f80ed;
     color: white;
     border: none;
-    border-radius: 0 50px 50px 0; /* 右邊圓角 (膠囊狀) */
+    border-radius: 0 50px 50px 0;
     cursor: pointer;
     font-size: 20px;
     transition: all 0.3s;
@@ -83,25 +275,18 @@ button:hover {
     transform: translateY(-1px);
 }
 
-input[type="text"]:focus {
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1), 0 4px 12px rgba(0,0,0,0.15);
-}
-
 /* Placeholder 樣式 */
 ::placeholder { color: #999; opacity: 1; }
 :-ms-input-placeholder { color: #999; }
 ::-ms-input-placeholder { color: #999; }
 
-/* --- 以下維持原本的搜尋結果樣式，確保功能正常 --- */
-
-.results-container {
-    text-align: left;
-    max-width: 850px; /* 配合搜尋框寬度 */
-    margin: 20px auto 0;
-    padding: 0 10px;
+/* =========================================
+   5. 載入動畫與關鍵字標籤
+   ========================================= */
+.loading-container {
+    margin-top: 20px;
 }
 
-/* 載入動畫 (Loader) */
 .loader {
     border: 5px solid #f3f3f3;
     border-top: 5px solid #2f80ed;
@@ -111,58 +296,69 @@ input[type="text"]:focus {
     animation: spin 1s linear infinite;
     margin: 30px auto;
 }
+
 .loading-text {
-    color: #0b3d91; /* 在深藍背景上改用白色文字 */
+    color: #0b3d91;
     margin-bottom: 20px;
     font-size: 16px;
     font-weight: bold;
 }
-
- .expanded-keywords-container {
-     width: 100%;
-     max-width: 850px;
-     margin: 16px auto 18px;
-     display: flex;
-     flex-wrap: wrap;
-     gap: 10px;
-     justify-content: flex-start;
-     padding: 0 10px;
- }
-
- .keyword-tag {
-     border: none;
-     cursor: pointer;
-     padding: 6px 12px;
-     border-radius: 999px;
-     font-size: 13px;
-     background: rgba(255, 255, 255, 0.95);
-     color: #1f3a5f;
-     box-shadow: 0 2px 8px rgba(0,0,0,0.10);
-     transition: box-shadow 0.15s ease;
-     height: auto;
-     line-height: normal;
-     display: inline-flex;
-     align-items: center;
- }
-
- .keyword-tag:hover {
-     background: #eaf7ff;
-     color: #0b3d91;
-     box-shadow: 0 8px 18px rgba(0,0,0,0.18);
-     transform: translateY(-1px);
- }
 
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
 
-/* WebTree 結果結構 */
+.expanded-keywords-container {
+    width: 100%;
+    max-width: 850px;
+    margin: 16px auto 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-start;
+    padding: 0 10px;
+}
+
+.keyword-tag {
+    border: none;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    background: rgba(255, 255, 255, 0.95);
+    color: #1f3a5f;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    transition: box-shadow 0.15s ease;
+    height: auto;
+    line-height: normal;
+    display: inline-flex;
+    align-items: center;
+}
+
+.keyword-tag:hover {
+    background: #eaf7ff;
+    color: #0b3d91;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+    transform: translateY(-1px);
+}
+
+/* =========================================
+   6. 搜尋結果列表 (WebTree)
+   ========================================= */
+.results-container {
+    text-align: left;
+    max-width: 850px;
+    margin: 20px auto 0;
+    padding: 0 10px;
+    width: 100%; /* 確保容器寬度 */
+}
+
 .webtree-root {
     margin-bottom: 20px;
     border-radius: 12px;
     overflow: hidden;
-    background: rgba(255, 255, 255, 0.95); /* 讓結果卡片稍微透明一點點 */
+    background: rgba(255, 255, 255, 0.95);
     box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 
@@ -242,30 +438,13 @@ input[type="text"]:focus {
     object-fit: cover;
 }
 
-.result-footer {
-    margin-top: 10px;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
 .result-score {
     font-size: 12px;
     background: #dbefff;
     color: #0b3d91;
     padding: 2px 8px;
     border-radius: 4px;
-}
-
-.toggle-children {
-    background: none;
-    border: none;
-    color: #70757a;
-    cursor: pointer;
-    font-size: 13px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
+    white-space: nowrap; /* 防止分數換行 */
 }
 
 .no-result {
@@ -274,24 +453,48 @@ input[type="text"]:focus {
     padding: 15px;
     border-radius: 8px;
     display: inline-block;
+    margin-top: 20px;
 }
 
-/* Search Icon */
-.search-icon {
-    width: 30px;
-    height: 30px;
-    vertical-align: middle;
-    margin: 0 10px 0 0;
-    position: relative;
-    top: -2px; /* 微調垂直位置 */
+/* =========================================
+   7. 分頁 (Pagination)
+   ========================================= */
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 20px;
+    padding-bottom: 20px;
 }
 
-h1 .search-icon:last-child {
-    margin: 0 0 0 10px;
-    top: -2px;
+.page-btn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 15px 15px;
+    border: 2px solid #9c7a5b;
+    background-color: transparent;
+    color: #9c7a5b;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.3s;
+    min-height: 15px; 
 }
 
-/* RWD 響應式調整 */
+.page-btn:hover {
+    background-color: #f0e6d2;
+}
+
+.page-btn.active {
+    background-color: #7b5e43;
+    color: white;
+    border-color: #7b5e43;
+}
+
+/* =========================================
+   8. RWD 響應式調整
+   ========================================= */
 @media (max-width: 768px) {
     .search-box-wrapper {
         padding: 40px 20px;
@@ -304,161 +507,27 @@ h1 .search-icon:last-child {
         margin-bottom: 40px;
     }
     
+    form {
+        width: 100%; /* 手機版寬度滿版 */
+        margin: 0;
+    }
+
     input[type="text"], button {
         height: 56px;
         font-size: 16px;
     }
     
+    button {
+        padding: 0 25px; /* 手機版按鈕窄一點 */
+    }
+    
     .result-thumbnail {
         width: 80px;
         height: 80px;
+        display: none; /* 手機版如果太擠可以考慮隱藏，或保留皆可 */
     }
-}
-/* =========================================
-   新增樣式：背景動畫與分頁
-   ========================================= */
-/* 1. 背景動畫容器 */
-.bg-animation {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -1;
-    overflow: hidden;
-    pointer-events: none;
-}
-
-/* 2. 鞋子共通設定 (大小、動畫邏輯) */
-.shoe {
-    position: absolute;
-    width: 90px;   /* 您可以根據圖片實際大小微調 */
-    height: 75px;  /* 您可以根據圖片實際大小微調 */
-    background-size: contain; /* 保持圖片比例，不被裁切 */
-    background-repeat: no-repeat;
-    animation: runAcross 15s linear infinite;
-    opacity: 0.9;  /* 讓圖片清晰一點 */
-}
-
-/* 3. 定義動畫路徑 */
-@keyframes runAcross {
-    0% { transform: translateX(-15vw) rotate(-5deg); }
-    100% { transform: translateX(115vw) rotate(5deg); }
-}
-
-/* 4. 設定這些鞋子：讀取不同圖片 + 不同速度與位置 */
-
-/* 第一隻鞋：shoes1.png */
-.s1 { 
-    background-image: url('images/shoes1.png'); 
-    top: 3%; 
-    animation-duration: 9s; 
-    animation-delay: 0s; 
-}
-
-/* 第二隻鞋：shoe2.png */
-.s2 {
-    background-image: url('images/shoes2.png'); 
-    top: 15%; 
-    animation-duration: 7s; 
-    animation-delay: 6s; 
-    transform: scale(0.8); /*稍微縮小一點增加遠近感*/
-}
-
-/* 第三隻鞋：shoe3.png */
-.s3 { 
-    background-image: url('images/shoes3.png'); 
-    top: 25%; 
-    animation-duration: 18s; 
-    animation-delay: 1s; 
-}
-
-/* 第四隻鞋：shoe4.png */
-.s4 { 
-    background-image: url('images/shoes4.png'); 
-    top: 35%; 
-    animation-duration: 20s; 
-    animation-delay: 4s; 
-    transform: scale(0.7); 
-    opacity: 0.7; /* 遠處的鞋子稍微透明 */
-}
-
-/* 第五隻鞋：shoe5.png */
-.s5 { 
-    background-image: url('images/shoes5.png'); 
-    top: 45%; 
-    animation-duration: 10s; 
-    animation-delay: 2s; 
-}
-
-.s6 { 
-    background-image: url('images/shoes6.png'); 
-    top: 55%; 
-    animation-duration: 15s; 
-    animation-delay: 0s; 
-}
-
-.s7 { 
-    background-image: url('images/shoes7.png'); 
-    top: 65%; 
-    animation-duration: 7s; 
-    animation-delay: 0s; 
-}
-
-.s8 { 
-    background-image: url('images/shoes8.png'); 
-    top: 75%; 
-    animation-duration: 11s; 
-    animation-delay: 1s; 
-}
-
-.s9 { 
-    background-image: url('images/shoes9.png'); 
-    top: 85%; 
-    animation-duration: 13s; 
-    animation-delay: 3s; 
-}
-
-.s10 { 
-    background-image: url('images/shoes10.png'); 
-    top: 5%; 
-    animation-duration: 6s; 
-    animation-delay: 0s; 
-}
-
-.s11 { 
-    background-image: url('images/shoes11.png'); 
-    top: 80%; 
-    animation-duration: 5s; 
-    animation-delay: 1s; 
-}
-
-/* 2. 分頁按鈕樣式 */
-.pagination {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin-top: 20px;
-    padding-bottom: 20px;
-}
-
-.page-btn {
-    padding: 8px 15px;
-    border: 2px solid #9c7a5b;
-    background-color: transparent;
-    color: #9c7a5b;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: 0.3s;
-}
-
-.page-btn:hover {
-    background-color: #f0e6d2;
-}
-
-.page-btn.active {
-    background-color: #7b5e43;
-    color: white;
-    border-color: #7b5e43;
+    
+    .result-content-wrapper {
+        gap: 10px;
+    }
 }

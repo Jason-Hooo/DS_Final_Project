@@ -1,22 +1,33 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="UTF-8">
     <title>鞋子評價搜尋引擎</title>
-    <link rel="stylesheet" href="style.css"> </head>
+    <link rel="stylesheet" href="style.css">
+</headß
+
 <body>
     <div class="bg-animation">
-        <div class="shoe s1"></div>
-        <div class="shoe s2"></div>
-        <div class="shoe s3"></div>
-        <div class="shoe s4"></div>
-        <div class="shoe s5"></div>
-        <div class="shoe s6"></div>
-        <div class="shoe s7"></div>
-        <div class="shoe s8"></div>
-        <div class="shoe s9"></div>
-        <div class="shoe s10"></div>
-        <div class="shoe s11"></div>
+        <div class="batch-container batch-group-1">
+            <div class="shoe s1"></div>
+            <div class="shoe s2"></div>
+            <div class="shoe s3"></div>
+            <div class="shoe s4"></div>
+        </div>
+
+        <div class="batch-container batch-group-2">
+            <div class="shoe s5"></div>
+            <div class="shoe s6"></div>
+            <div class="shoe s7"></div>
+            <div class="shoe s8"></div>
+        </div>
+
+        <div class="batch-container batch-group-3">
+            <div class="shoe s9"></div>
+            <div class="shoe s10"></div>
+            <div class="shoe s11"></div>
+        </div>
     </div>
 
     <div class="main-container">
@@ -27,7 +38,7 @@
                 <input type="text" id="keyword" placeholder="請輸入搜尋內容 (例如: puma speedcat)" required>
                 <button type="submit">Search!</button>
             </form>
-            
+
             <div id="loading" class="loading-container" style="display: none;">
                 <div class="loader"></div>
                 <p class="loading-text">正在搜尋中，請稍候...</p>
@@ -36,31 +47,49 @@
             <div id="expandedKeywordsContainer" class="expanded-keywords-container" style="display: none;"></div>
 
             <div id="resultsContainer" class="results-container">
-                </div>
+            </div>
+
             <div id="pagination" class="pagination"></div>
+
             <p id="noResult" class="no-result" style="display: none;">沒有找到結果。</p>
         </div>
     </div>
-   
 
-   <script>
+
+    <script>
         // 全域變數
         let allResults = [];
         let currentPage = 1;
-        const itemsPerPage = 5; 
+        const itemsPerPage = 5;
 
-        document.getElementById('searchForm').addEventListener('submit', function(e) {
-            e.preventDefault(); 
-            const keyword = document.getElementById('keyword').value;
+        // --- 新增：點擊標籤後自動填入並搜尋的函式 ---
+        function triggerSearch(newKeyword) {
+            const input = document.getElementById('keyword');
+            const form = document.getElementById('searchForm');
             
+            // 1. 設定輸入框文字
+            input.value = newKeyword;
+            
+            // 2. 觸發表單送出 (這會觸發下方的 submit listener)
+            if (form.requestSubmit) {
+                form.requestSubmit();
+            } else {
+                form.querySelector('button[type="submit"]').click();
+            }
+        }
+
+        document.getElementById('searchForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const keyword = document.getElementById('keyword').value;
+
             // UI 初始化
             document.getElementById('resultsContainer').innerHTML = '';
             document.getElementById('pagination').innerHTML = '';
-            document.getElementById('expandedKeywordsContainer').innerHTML = ''; // 清空關鍵字區
+            document.getElementById('expandedKeywordsContainer').innerHTML = '';
             document.getElementById('expandedKeywordsContainer').style.display = 'none';
             document.getElementById('noResult').style.display = 'none';
             document.getElementById('loading').style.display = 'block';
-            
+
             allResults = [];
             currentPage = 1;
 
@@ -81,8 +110,6 @@
                 fetch('/api/results')
                     .then(res => res.json())
                     .then(data => {
-                        // 🔥 修正重點：從 data.results 取得資料，而不是直接用 data
-                        // 這裡要相容兩種格式 (以防萬一)
                         const results = Array.isArray(data) ? data : (data.results || []);
                         const expandedKeywords = data.expandedKeywords || [];
 
@@ -90,30 +117,30 @@
                         if (results.length === 0 && attempts < maxAttempts) {
                             attempts++;
                             console.log(`等待資料中... (${attempts}/${maxAttempts})`);
-                            pollResults(); 
-                        } 
+                            pollResults();
+                        }
                         // 情況 B: 抓到資料了！
                         else if (results.length > 0) {
                             document.getElementById('loading').style.display = 'none';
-                            
+
                             // 1. 儲存資料
                             allResults = results;
-                            
-                            // 2. 顯示擴展關鍵字 (如果有)
+
+                            // 2. 顯示擴展關鍵字 (修改處：onclick 改為呼叫 triggerSearch)
                             if (expandedKeywords.length > 0) {
                                 const kwContainer = document.getElementById('expandedKeywordsContainer');
                                 kwContainer.style.display = 'flex';
-                                kwContainer.innerHTML = expandedKeywords.map(k => 
-                                    `<span class="keyword-tag" onclick="document.getElementById('keyword').value='${k}';">${k}</span>`
+                                kwContainer.innerHTML = expandedKeywords.map(k =>
+                                    `<span class="keyword-tag" onclick="triggerSearch('${k}')">${k}</span>`
                                 ).join('');
                             }
 
                             // 3. 渲染頁面
                             renderPage(1);
                             renderPagination();
-                            
+
                             attempts = 0;
-                        } 
+                        }
                         // 情況 C: 超時
                         else {
                             document.getElementById('loading').style.display = 'none';
@@ -122,14 +149,14 @@
                     })
                     .catch(e => {
                         console.error("連線錯誤", e);
-                        if(attempts < maxAttempts) { attempts++; pollResults(); }
+                        if (attempts < maxAttempts) { attempts++; pollResults(); }
                     });
             }, 2000);
         }
 
         function renderPage(page) {
             const container = document.getElementById('resultsContainer');
-            container.innerHTML = ''; 
+            container.innerHTML = '';
             currentPage = page;
 
             const start = (page - 1) * itemsPerPage;
@@ -138,22 +165,49 @@
 
             pageData.forEach(item => {
                 const itemDiv = document.createElement('div');
-                itemDiv.className = 'webtree-root'; // 使用新的 CSS Class
+                itemDiv.className = 'webtree-root';
 
                 const url = item.url || "#";
-                // 分數顯示邏輯
                 let score = item.score !== undefined ? item.score : (item.aggregatedScore || 0);
-                let content = item.content ? item.content.substring(0, 120) + "..." : "無內容";
-                let title = item.title || url; // 優先顯示標題
+                let content = item.content ? item.content.substring(0, 150) + "..." : "無內容";
+                let title = item.title || url;
+
+                let domain = '';
+                let faviconUrl = '';
+                try {
+                    if (url !== "#") {
+                        domain = new URL(url).hostname;
+                        faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+                    }
+                } catch (e) { console.log("URL Parse Error", e); }
+
+                const hasThumbnail = item.thumbnail && item.thumbnail !== "";
 
                 itemDiv.innerHTML = `
                     <div class="webtree-node">
-                        <div class="result-header">
-                            <a href="${url}" target="_blank" class="result-title">${title}</a>
-                            <span class="result-score">${score.toFixed(1)}分</span>
+                        <div class="result-content-wrapper">
+                            
+                            <div class="result-main-content">
+                                <div class="result-header">
+                                    ${faviconUrl ? `<img src="${faviconUrl}" alt="" class="result-favicon" onerror="this.style.display='none'">` : ''}
+                                    
+                                    <div style="flex: 1;">
+                                        <a href="${url}" target="_blank" class="result-title">${title}</a>
+                                        <span class="result-url">${domain || url}</span>
+                                    </div>
+                                </div>
+                                
+                                <p class="result-snippet">${content}</p>
+                                <span class="result-score">${score.toFixed(1)}分</span>
+                            </div>
+
+                            ${hasThumbnail ? `
+                            <div class="result-thumbnail">
+                                <img src="${item.thumbnail}" alt="縮圖" class="thumbnail-image" onerror="this.style.display='none'">
+                            </div>
+                            ` : ''}
+
                         </div>
-                        <span class="result-url">${url}</span>
-                        <p class="result-snippet">${content}</p>
                     </div>
                 `;
                 container.appendChild(itemDiv);
@@ -171,10 +225,11 @@
                 const btn = document.createElement('button');
                 btn.innerText = i;
                 btn.className = (i === currentPage) ? 'page-btn active' : 'page-btn';
-                btn.onclick = function() { renderPage(i); }; 
+                btn.onclick = function () { renderPage(i); };
                 container.appendChild(btn);
             }
         }
     </script>
- </body>
- </html>
+</body>
+
+</html>
