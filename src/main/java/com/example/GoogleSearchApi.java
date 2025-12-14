@@ -25,15 +25,16 @@ public class GoogleSearchApi {
         this.cx = cx;
     }
 
-    public List<String> search(String query, int numResults) {
-        Set<String> urlSet = new HashSet<>();
+    public List<WebTree> search(String query, int numResults) {
+        List<WebTree> results = new ArrayList<>();
+        Set<String> processedUrls = new HashSet<>();
         int start = 1;
 
         System.out.println("Google API 搜尋: " + query + ", 目標: " + numResults);
 
         try {
-            while (urlSet.size() < numResults) {
-                int numToFetch = Math.min(10, numResults - urlSet.size());
+            while (results.size() < numResults) {
+                int numToFetch = Math.min(10, numResults - results.size());
                 
                 String apiUrl = String.format("%s?key=%s&cx=%s&q=%s&start=%d&num=%d&lr=lang_zh-TW&gl=tw",
                         API_ENDPOINT, apiKey, cx,
@@ -56,10 +57,33 @@ public class GoogleSearchApi {
 
                 JSONArray items = json.getJSONArray("items");
                 for (int i = 0; i < items.length(); i++) {
-                    if (urlSet.size() >= numResults) break;
-                    String linkUrl = items.getJSONObject(i).getString("link");
-                    if (!_isExcluded(linkUrl)) {
-                        urlSet.add(linkUrl);
+                    if (results.size() >= numResults) break;
+                
+                    JSONObject item = items.getJSONObject(i);
+                    String linkUrl = item.getString("link");
+                    
+                    if (!_isExcluded(linkUrl) && !processedUrls.contains(linkUrl)) {
+                        String title = item.optString("title", "");
+                        String snippet = item.optString("snippet", "");
+                        String thumbnail = "";
+                        
+                        // 嘗試獲取縮圖網址
+                        if (item.has("pagemap") && item.getJSONObject("pagemap").has("cse_thumbnail")) {
+                            JSONArray thumbnails = item.getJSONObject("pagemap").getJSONArray("cse_thumbnail");
+                            if (thumbnails.length() > 0) {
+                                thumbnail = thumbnails.getJSONObject(0).getString("src");
+                            }
+                        }
+                        
+                        // 如果沒有縮圖，使用 favicon
+                        if (thumbnail.isEmpty()) {
+                            String domain = new URL(linkUrl).getHost();
+                            thumbnail = String.format("https://www.google.com/s2/favicons?domain=%s&sz=128", domain);
+                        }
+                        
+                        WebTree webTree = new WebTree(linkUrl, title, snippet, thumbnail);
+                        results.add(webTree);
+                        processedUrls.add(linkUrl);
                     }
                 }
                 start += 10;
@@ -68,7 +92,7 @@ public class GoogleSearchApi {
             System.err.println("Google Search API 錯誤: " + e.getMessage());
         }
 
-        return new ArrayList<>(urlSet);
+        return results;
     }
     
     private boolean _isExcluded(String url) {

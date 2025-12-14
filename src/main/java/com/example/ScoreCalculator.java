@@ -1,106 +1,107 @@
-package com.example;
+package com.example; // 記得改成你的 package
 
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.openai.OpenAiChatModel;
 
 public class ScoreCalculator {
 
-    // ⚠️ 請確認您的 Python 伺服器網址
-    private static final String PYTHON_API_URL = "http://127.0.0.1:5000/calculate_similarity"; 
-    
-    // 權重設定
-    private static final double WEIGHT_TEXT_ANALYSIS = 0.4;
-    private static final double WEIGHT_VECTOR_AI = 0.6;
+    // 1. LLM 快取
+    private static final Map<String, List<String>> LLM_CACHE = new ConcurrentHashMap<>();
 
-    private static final Gson gson = new Gson();
+    // 2. LLM 模型實例 (建議設為 Static，避免每次計算都重新建立連線)
+    private static ChatLanguageModel chatModel;
+
+    // TODO: 請填入你的 Groq API Key
+    private static final String API_KEY = "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"; 
+
+    // 初始化模型 (只執行一次)
+    static {
+        if (API_KEY != null && !API_KEY.contains("填在這裡")) {
+            chatModel = OpenAiChatModel.builder()
+                .apiKey(API_KEY)
+                .baseUrl("https://api.groq.com/openai/v1")
+                .modelName("llama-3.3-70b-versatile") // Groq 目前最強免費模型
+                .temperature(0.5) // 降低隨機性，讓答案更精準
+                .timeout(java.time.Duration.ofSeconds(10)) // 設定超時，避免卡死
+                .build();
+        }
+    }
+
+    // 3. 鞋類評價專用詞庫 (加分項)
+    private static final List<String> EVALUATION_KEYWORDS = List.of(
+        "好穿", "舒適", "軟彈", "踩屎感", "Q彈", "回彈", "透氣", "包覆", "穩定", "抓地", "支撐", "神鞋", "必買", "CP值", "腳感",
+        "磨腳", "咬腳", "太硬", "太重", "悶熱", "打滑", "版型偏小", "版型偏大", "壓腳背", "掉跟"
+    );
+
+    // 4. 電商/交易黑名單 (扣分項)
+    private static final List<String> SHOPPING_KEYWORDS = List.of(
+        "購物", "拍賣", "商城", "售價", "價格", "下單", "免運", "現貨", "代購", "二手", 
+        "賣場", "加入購物車", "立即購買", "Shop", "Price", "Sale", "Cart", "Buy"
+    );
 
     /**
-     * 主計算方法
+     * 核心計算方法
      */
-    public static double calculate(String keyword, String content) {
+    public static double calculate(String keyword, List<String> expandedKeywords, String title, String content) {
         if (content == null || content.isEmpty()) return 0.0;
+        
+        String lowerTitle = (title != null) ? title.toLowerCase() : "";
+        String lowerContent = content.toLowerCase();
+        String lowerKeyword = keyword.toLowerCase();
 
-        // 1. 本地簡單關鍵字計算 (Basic Score)
-        double basicScore = calculateBasicScore(keyword, content);
+        // --- 步驟 1: 電商屠殺 ---
+        if (isShoppingPattern(lowerTitle, lowerContent)) {
+            // System.out.println("偵測到電商/交易網站: " + title);
+            return 1.0; 
+        }
+        
+        Set<String> allTargetWords = new HashSet<>(expandedKeywords);
+        allTargetWords.add(lowerKeyword);
 
-        // 2. 呼叫 Python AI 計算 (Vector Score)
-        double aiScore = callPythonAiScore(keyword, content);
+        // --- 步驟 3: 計算分數 ---
+        double score = 0.0;
 
-        // 3. 加權總分
-        return (basicScore * WEIGHT_TEXT_ANALYSIS) + (aiScore * WEIGHT_VECTOR_AI);
+        // A. 關鍵字命中
+        for (String word : allTargetWords) {
+            score += (countOccurrences(lowerContent, word) * 2.0);
+        }
+
+        // B. 評價詞命中
+        for (String evalWord : EVALUATION_KEYWORDS) {
+            score += (countOccurrences(lowerContent, evalWord) * 1.5);
+        }
+
+        // C. 標題加權
+        if (lowerTitle.contains(lowerKeyword)) {
+            score += 50.0;
+        }
+
+        return score;
     }
 
-    // --- 內部輔助方法 ---
-
-    private static double calculateBasicScore(String keyword, String content) {
-        // 簡單計算：關鍵字出現次數 / (文章長度/100)
-        int count = content.split(keyword, -1).length - 1;
-        // 避免分母為 0
-        double lengthFactor = Math.max(1, content.length() / 500.0); 
-        return Math.min(100, (count * 10) / lengthFactor);
-    }
-
-    private static double callPythonAiScore(String keyword, String content) {
-        HttpURLConnection conn = null;
-        try {
-            // 準備 JSON Payload
-            JsonObject jsonBody = new JsonObject();
-            jsonBody.addProperty("keyword", keyword);
-            String safeContent = content.length() > 2000 ? content.substring(0, 2000) : content;
-            jsonBody.addProperty("text", safeContent);
-            String requestBody = gson.toJson(jsonBody);
-
-            // 建立連線 (使用最傳統的 HttpURLConnection)
-            URL url = new URL(PYTHON_API_URL);
-            conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-            conn.setRequestProperty("Accept", "application/json");
-            conn.setDoOutput(true);
-            conn.setConnectTimeout(5000); // 5秒連線超時
-            conn.setReadTimeout(10000);   // 10秒讀取超時
-
-            // 發送 Request Body
-            try (OutputStream os = conn.getOutputStream()) {
-                byte[] input = requestBody.getBytes(StandardCharsets.UTF_8);
-                os.write(input, 0, input.length);
-            }
-
-            // 讀取回應
-            int responseCode = conn.getResponseCode();
-            if (responseCode == 200) {
-                try (BufferedReader br = new BufferedReader(
-                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
-                    StringBuilder response = new StringBuilder();
-                    String responseLine;
-                    while ((responseLine = br.readLine()) != null) {
-                        response.append(responseLine.trim());
-                    }
-                    
-                    // 解析回傳的 JSON
-                    JsonObject responseJson = gson.fromJson(response.toString(), JsonObject.class);
-                    if (responseJson.has("similarity")) {
-                        return responseJson.get("similarity").getAsDouble() * 100;
-                    }
-                }
-            } else {
-                System.err.println("⚠️ Python API 回傳錯誤代碼: " + responseCode);
-            }
-
-        } catch (Exception e) {
-            System.err.println("⚠️ 無法連線至 Python AI 伺服器 (跳過 AI 分數): " + e.getMessage());
-        } finally {
-            if (conn != null) {
-                conn.disconnect();
+    private static boolean isShoppingPattern(String title, String content) {
+        for (String badWord : SHOPPING_KEYWORDS) {
+            if (title.contains(badWord.toLowerCase())) {
+                return true;
             }
         }
-        return 0.0;
+        int shoppingTermCount = 0;
+        if (content.contains("加入購物車")) shoppingTermCount += 5;
+        if (content.contains("立即購買")) shoppingTermCount += 5;
+        if (content.contains("庫存")) shoppingTermCount += 2;
+        return shoppingTermCount >= 5;
+    }
+
+    private static int countOccurrences(String text, String target) {
+        if (target.length() == 0) return 0;
+        int count = 0;
+        int idx = 0;
+        while ((idx = text.indexOf(target, idx)) != -1) {
+            count++;
+            idx += target.length();
+        }
+        return count;
     }
 }

@@ -27,8 +27,8 @@ public class ContentExtractor {
 
     public List<WebTree> fetchContentTrees(String searchQuery, int numResults, int maxDepth) {
         processedCount.set(0);
-        List<String> rootUrls = searchApi.search(searchQuery, numResults);
-        if (rootUrls.isEmpty()) return new ArrayList<>();
+        List<WebTree> rootNodes = searchApi.search(searchQuery, numResults);
+        if (rootNodes.isEmpty()) return new ArrayList<>();
 
         Set<String> visitedUrls = Collections.newSetFromMap(new ConcurrentHashMap<>());
         
@@ -37,15 +37,14 @@ public class ContentExtractor {
         List<WebTree> results = new ArrayList<>();
 
         // 單線程依序執行 (最穩)
-        for (String url : rootUrls) {
+        for (WebTree rootNode : rootNodes) {
+            String url = rootNode.getUrl();
             
             // 根網址層級的過濾
             if (isJunkLink(url) || url.contains("footlocker")) continue;
             
             String rootDomain = getDomainName(url);
             if (rootDomain == null) continue;
-
-            WebTree rootNode = new WebTree(url);
             
             crawlRecursive(rootNode, rootDomain, maxDepth, visitedUrls);
             
@@ -81,6 +80,7 @@ public class ContentExtractor {
             String linkDomain = getDomainName(linkUrl);
             
             if (linkDomain != null && linkDomain.equals(targetDomain) && !visitedUrls.contains(linkUrl)) {
+                // 創建子節點時只包含URL，其他欄位由爬蟲填充
                 WebTree childNode = new WebTree(linkUrl);
                 node.addChild(childNode);
                 
