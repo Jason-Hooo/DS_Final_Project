@@ -5,6 +5,20 @@
     <title>鞋子評價搜尋引擎</title>
     <link rel="stylesheet" href="style.css"> </head>
 <body>
+    <div class="bg-animation">
+        <div class="shoe s1"></div>
+        <div class="shoe s2"></div>
+        <div class="shoe s3"></div>
+        <div class="shoe s4"></div>
+        <div class="shoe s5"></div>
+        <div class="shoe s6"></div>
+        <div class="shoe s7"></div>
+        <div class="shoe s8"></div>
+        <div class="shoe s9"></div>
+        <div class="shoe s10"></div>
+        <div class="shoe s11"></div>
+    </div>
+
     <div class="main-container">
         <div class="search-box-wrapper">
             <h1> 鞋類評價搜尋引擎 <img src="images/search-icon.png" alt="搜尋" class="search-icon"></h1>
@@ -23,7 +37,7 @@
 
             <div id="resultsContainer" class="results-container">
                 </div>
-            
+            <div id="pagination" class="pagination"></div>
             <p id="noResult" class="no-result" style="display: none;">沒有找到結果。</p>
         </div>
     </div>
@@ -31,222 +45,135 @@
 
    <script>
         // 全域變數
-        let currentController = null;
-        let currentPollingTimeout = null;
-        let currentAttempts = 0;
-        const maxAttempts = 60; // 嘗試 60 次 (共 120 秒)
-        
-        // 取消當前的搜尋和輪詢
-        function cancelCurrentSearch() {
-            // 取消當前的 fetch 請求
-            if (currentController) {
-                currentController.abort();
-                currentController = null;
-            }
-            
-            // 清除當前的輪詢計時器
-            if (currentPollingTimeout) {
-                clearTimeout(currentPollingTimeout);
-                currentPollingTimeout = null;
-            }
-            
-            // 重置計數器
-            currentAttempts = 0;
-        }
+        let allResults = [];
+        let currentPage = 1;
+        const itemsPerPage = 5; 
 
-        function startSearch(keyword) {
-            const resultsContainer = document.getElementById('resultsContainer');
-            const loadingDiv = document.getElementById('loading');
-            const noResultMsg = document.getElementById('noResult');
-            const expandedKeywordsContainer = document.getElementById('expandedKeywordsContainer');
-
-            cancelCurrentSearch();
-
-            resultsContainer.innerHTML = '';
-            noResultMsg.style.display = 'none';
-            expandedKeywordsContainer.style.display = 'none';
-            expandedKeywordsContainer.innerHTML = '';
-            loadingDiv.style.display = 'block';
-
-            currentController = new AbortController();
-            const signal = currentController.signal;
-
-            console.log("正在呼叫搜尋 API: " + keyword);
-            fetch(`/api/search-tree?q=${encodeURIComponent(keyword)}&num=5&depth=2`, { signal })
-                .then(response => {
-                    if (response.status === 202) {
-                        console.log("任務已接受，開始輪詢結果...");
-                        currentAttempts = 0;
-                        pollResults(signal);
-                    } else {
-                        throw new Error("API 請求失敗: " + response.status);
-                    }
-                })
-                .catch(err => {
-                    if (err.name === 'AbortError') {
-                        console.log('前一個搜尋已被取消');
-                        return;
-                    }
-                    console.error("搜尋啟動失敗:", err);
-                    loadingDiv.style.display = 'none';
-                    alert("系統發生錯誤，請按 F12 查看 Console");
-                });
-        }
-
-        // 搜尋表單提交處理
         document.getElementById('searchForm').addEventListener('submit', function(e) {
             e.preventDefault(); 
+            const keyword = document.getElementById('keyword').value;
             
-            const keyword = document.getElementById('keyword').value.trim();
-            if (!keyword) return; // 如果關鍵字為空則不執行搜尋
+            // UI 初始化
+            document.getElementById('resultsContainer').innerHTML = '';
+            document.getElementById('pagination').innerHTML = '';
+            document.getElementById('expandedKeywordsContainer').innerHTML = ''; // 清空關鍵字區
+            document.getElementById('expandedKeywordsContainer').style.display = 'none';
+            document.getElementById('noResult').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+            
+            allResults = [];
+            currentPage = 1;
 
-            startSearch(keyword);
+            // 呼叫 API
+            fetch(`/api/search-tree?q=${encodeURIComponent(keyword)}`)
+                .then(res => {
+                    if (res.status === 202) pollResults();
+                    else alert("API 請求失敗");
+                });
         });
 
-        function pollResults(signal) {
-            currentPollingTimeout = setTimeout(() => {
-                fetch('/api/results', { signal })
+        // 輪詢資料
+        let attempts = 0;
+        const maxAttempts = 60; // 等待 120 秒
+
+        function pollResults() {
+            setTimeout(() => {
+                fetch('/api/results')
                     .then(res => res.json())
                     .then(data => {
-                        console.log("輪詢第 " + (currentAttempts + 1) + " 次，收到資料:", data);
+                        // 🔥 修正重點：從 data.results 取得資料，而不是直接用 data
+                        // 這裡要相容兩種格式 (以防萬一)
+                        const results = Array.isArray(data) ? data : (data.results || []);
+                        const expandedKeywords = data.expandedKeywords || [];
 
-                        const results = data && data.results ? data.results : [];
-                        const expandedKeywords = data && data.expandedKeywords ? data.expandedKeywords : [];
-                        
-                        // 情況 A: 後端還沒準備好 (空陣列)
-                        if ((!results || results.length === 0) && currentAttempts < maxAttempts) {
-                            currentAttempts++;
-                            pollResults(signal); // 再等一次
-                            return;
-                        }
-
-                        const loadingDiv = document.getElementById('loading');
-                        const resultsContainer = document.getElementById('resultsContainer');
-                        const expandedKeywordsContainer = document.getElementById('expandedKeywordsContainer');
-                        const noResultMsg = document.getElementById('noResult');
-
-                        loadingDiv.style.display = 'none'; // 關掉轉圈圈
-
+                        // 情況 A: 資料是空的，且還沒超時 -> 繼續等
+                        if (results.length === 0 && attempts < maxAttempts) {
+                            attempts++;
+                            console.log(`等待資料中... (${attempts}/${maxAttempts})`);
+                            pollResults(); 
+                        } 
                         // 情況 B: 抓到資料了！
-                        if (results && results.length > 0) {
-                            if (expandedKeywords && expandedKeywords.length > 0) {
-                                expandedKeywordsContainer.innerHTML = '';
-                                expandedKeywords.forEach(kw => {
-                                    const btn = document.createElement('button');
-                                    btn.type = 'button';
-                                    btn.className = 'keyword-tag';
-                                    btn.textContent = kw;
-                                    btn.addEventListener('click', () => {
-                                        const input = document.getElementById('keyword');
-                                        input.value = kw;
-                                        startSearch(kw);
-                                    });
-                                    expandedKeywordsContainer.appendChild(btn);
-                                });
-                                expandedKeywordsContainer.style.display = 'flex';
-                            } else {
-                                expandedKeywordsContainer.style.display = 'none';
-                                expandedKeywordsContainer.innerHTML = '';
+                        else if (results.length > 0) {
+                            document.getElementById('loading').style.display = 'none';
+                            
+                            // 1. 儲存資料
+                            allResults = results;
+                            
+                            // 2. 顯示擴展關鍵字 (如果有)
+                            if (expandedKeywords.length > 0) {
+                                const kwContainer = document.getElementById('expandedKeywordsContainer');
+                                kwContainer.style.display = 'flex';
+                                kwContainer.innerHTML = expandedKeywords.map(k => 
+                                    `<span class="keyword-tag" onclick="document.getElementById('keyword').value='${k}';">${k}</span>`
+                                ).join('');
                             }
 
-                            // 清空容器
-                            resultsContainer.innerHTML = '';
+                            // 3. 渲染頁面
+                            renderPage(1);
+                            renderPagination();
                             
-                            // 渲染 WebTree 結構
-                            results.forEach(rootNode => {
-                                // 創建根節點容器
-                                const rootDiv = document.createElement('div');
-                                rootDiv.className = 'webtree-root';
-                                
-                                // 遞歸渲染樹狀結構
-                                const renderNode = (node, container) => {
-                                    if (!node) return;
-                                    
-                                    const nodeDiv = document.createElement('div');
-                                    nodeDiv.className = 'webtree-node';
-                                    
-                                    // 獲取節點數據
-                                    const url = node.url || "#";
-                                    const title = node.title || '無標題';
-                                    const snippet = node.snippet || node.content || "無內容";
-                                    const score = node.score || 0;
-                                    const domain = url !== "#" ? new URL(url).hostname.replace('www.', '') : '';
-                                    const faviconUrl = url !== "#" ? `https://www.google.com/s2/favicons?domain=${url}&sz=32` : '';
-                                    
-                                    // 構建節點 HTML
-                                    nodeDiv.innerHTML = `
-                                        <div class="result-content-wrapper">
-                                            <div class="result-main-content">
-                                                <div class="result-header">
-                                                    ${faviconUrl ? `<img src="${faviconUrl}" alt="favicon" class="result-favicon" onerror="this.style.display='none'">` : ''}
-                                                    <div class="result-header-text">
-                                                        <a href="${url}" target="_blank" class="result-title">${title}</a>
-                                                        ${domain ? `<span class="result-url">${domain}</span>` : ''}
-                                                    </div>
-                                                </div>
-                                                <p class="result-snippet">${snippet.length > 200 ? snippet.substring(0, 200) + '...' : snippet}</p>
-                                                <div class="result-footer">
-                                                    <span class="result-score">相關度: ${score.toFixed(2)}</span>
-                                                    ${node.children && node.children.length > 0 ? 
-                                                        `<button class="toggle-children" onclick="this.parentNode.parentNode.parentNode.parentNode.querySelector('.webtree-children').classList.toggle('collapsed')">
-                                                            <span class="toggle-icon">▼</span> 子項目 (${node.children.length})
-                                                        </button>` : ''}
-                                                </div>
-                                            </div>
-                                            ${node.thumbnail ? `
-                                                <div class="result-thumbnail">
-                                                    <img src="${node.thumbnail}" alt="縮圖" class="thumbnail-image" onerror="this.style.display='none'">
-                                                </div>
-                                            ` : ''}
-                                        </div>
-                                        ${node.children && node.children.length > 0 ? 
-                                            `<div class="webtree-children collapsed">
-                                                <!-- 子節點將在這裡動態添加 -->
-                                            </div>` : ''}
-                                    `;
-                                    
-                                    // 添加節點到容器
-                                    container.appendChild(nodeDiv);
-                                    
-                                    // 遞歸渲染子節點
-                                    if (node.children && node.children.length > 0) {
-                                        const childrenContainer = nodeDiv.querySelector('.webtree-children');
-                                        node.children.forEach(child => {
-                                            renderNode(child, childrenContainer);
-                                        });
-                                    }
-                                };
-                                
-                                // 開始渲染
-                                renderNode(rootNode, rootDiv);
-                                resultsContainer.appendChild(rootDiv);
-                            });
-                            
-                            noResultMsg.style.display = 'none';
-                            currentAttempts = 0;
-                            return;
+                            attempts = 0;
+                        } 
+                        // 情況 C: 超時
+                        else {
+                            document.getElementById('loading').style.display = 'none';
+                            document.getElementById('noResult').style.display = 'block';
                         }
-
-                        // 情況 C: 超過最大嘗試次數 / 沒有結果
-                        expandedKeywordsContainer.style.display = 'none';
-                        expandedKeywordsContainer.innerHTML = '';
-                        noResultMsg.style.display = 'block';
-                        console.log('超過最大嘗試次數，停止輪詢');
-                        currentAttempts = 0;
                     })
-                    .catch(err => {
-                        if (err.name === 'AbortError') {
-                            console.log('輪詢已被取消');
-                            return;
-                        }
-                        console.error("輪詢發生錯誤:", err);
-                        // 就算出錯，只要次數沒滿就繼續試
-                        if (currentAttempts < maxAttempts) {
-                            currentAttempts++;
-                            pollResults(signal);
-                        }
+                    .catch(e => {
+                        console.error("連線錯誤", e);
+                        if(attempts < maxAttempts) { attempts++; pollResults(); }
                     });
-            }, 2000); // 每 2 秒檢查一次
+            }, 2000);
+        }
+
+        function renderPage(page) {
+            const container = document.getElementById('resultsContainer');
+            container.innerHTML = ''; 
+            currentPage = page;
+
+            const start = (page - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const pageData = allResults.slice(start, end);
+
+            pageData.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'webtree-root'; // 使用新的 CSS Class
+
+                const url = item.url || "#";
+                // 分數顯示邏輯
+                let score = item.score !== undefined ? item.score : (item.aggregatedScore || 0);
+                let content = item.content ? item.content.substring(0, 120) + "..." : "無內容";
+                let title = item.title || url; // 優先顯示標題
+
+                itemDiv.innerHTML = `
+                    <div class="webtree-node">
+                        <div class="result-header">
+                            <a href="${url}" target="_blank" class="result-title">${title}</a>
+                            <span class="result-score">${score.toFixed(1)}分</span>
+                        </div>
+                        <span class="result-url">${url}</span>
+                        <p class="result-snippet">${content}</p>
+                    </div>
+                `;
+                container.appendChild(itemDiv);
+            });
+            renderPagination();
+        }
+
+        function renderPagination() {
+            const container = document.getElementById('pagination');
+            container.innerHTML = '';
+            const totalPages = Math.ceil(allResults.length / itemsPerPage);
+            if (totalPages <= 1) return;
+
+            for (let i = 1; i <= totalPages; i++) {
+                const btn = document.createElement('button');
+                btn.innerText = i;
+                btn.className = (i === currentPage) ? 'page-btn active' : 'page-btn';
+                btn.onclick = function() { renderPage(i); }; 
+                container.appendChild(btn);
+            }
         }
     </script>
  </body>

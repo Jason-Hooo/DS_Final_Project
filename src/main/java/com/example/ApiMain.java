@@ -9,7 +9,7 @@ import static spark.Spark.*; //
 public class ApiMain {
 
     // 1. (請確認這裡的金鑰是正確且有額度的)
-    private static final String GOOGLE_API_KEY = "AIzaSyAguFYblPpFtHq0apnpx6vRmIADJqHhDyA";
+    private static final String GOOGLE_API_KEY = "AIzaSyDLmb1Ft_jm-i1A2xN2vyhrfFbTx6DRekM";
     // "AIzaSyDLmb1Ft_jm-i1A2xN2vyhrfFbTx6DRekM"; 
     // "AIzaSyCqNnL9jwvx80f_RYkv9j6nsAhRFnAS384"
     private static final String GOOGLE_CX_ID = "053fe703ca8d645f3";
@@ -105,11 +105,11 @@ public class ApiMain {
 
         // 
         String searchQueryNormal = keyword + "評價"; 
-        int targetRootUrlCountNormal = 3; // 
+        int targetRootUrlCountNormal = 6; // 
         int maxDepthNormal = 0; 
 
         String searchQueryForum = keyword + " site:ptt.cc OR site:dcard.tw"; 
-        int targetRootUrlCountForum = 3; 
+        int targetRootUrlCountForum = 6; 
         int maxDepthForum = 0; 
 
         // --- 任務 A: Normal ---
