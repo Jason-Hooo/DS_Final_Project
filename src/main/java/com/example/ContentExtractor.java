@@ -13,7 +13,6 @@ public class ContentExtractor {
 
     private final GoogleSearchApi searchApi;
     
-    // 設定：每層最多抓 3 個
     private static final int MAX_LINKS_PER_PAGE = 0; 
 
     private final AtomicInteger processedCount = new AtomicInteger(0);
@@ -21,11 +20,10 @@ public class ContentExtractor {
 
     public ContentExtractor(GoogleSearchApi searchApi, Browser browser) {
         this.searchApi = searchApi;
-        // 共用同一個 Scraper (單一引擎)
         this.scraper = new PageScraper(browser);
     }
 
-    public List<WebTree> fetchContentTrees(String searchQuery, int numResults, int maxDepth) {
+    public List<WebTree> fetchContentTrees(String searchQuery, int numResults, int maxDepth, java.util.function.Supplier<Boolean> isCancelled) {
         processedCount.set(0);
         List<WebTree> rootNodes = searchApi.search(searchQuery, numResults);
         if (rootNodes.isEmpty()) return new ArrayList<>();
@@ -36,25 +34,33 @@ public class ContentExtractor {
 
         List<WebTree> results = new ArrayList<>();
 
-        // 單線程依序執行 (最穩)
         for (WebTree rootNode : rootNodes) {
+            if (isCancelled.get()) {
+                System.out.println("🛑 任務已取消，停止爬取。");
+                break;
+            }
+
             String url = rootNode.getUrl();
             
-            // 根網址層級的過濾
             if (isJunkLink(url) || url.contains("footlocker")) continue;
             
             String rootDomain = getDomainName(url);
             if (rootDomain == null) continue;
             
-            crawlRecursive(rootNode, rootDomain, maxDepth, visitedUrls);
+            crawlRecursive(rootNode, rootDomain, maxDepth, visitedUrls, isCancelled);
             
             results.add(rootNode);
         }
         
         return results;
     }
+
+    public List<WebTree> fetchContentTrees(String searchQuery, int numResults, int maxDepth) {
+        return fetchContentTrees(searchQuery, numResults, maxDepth, () -> false);
+    }
     
-    private void crawlRecursive(WebTree node, String targetDomain, int depthLeft, Set<String> visitedUrls) {
+    private void crawlRecursive(WebTree node, String targetDomain, int depthLeft, Set<String> visitedUrls, java.util.function.Supplier<Boolean> isCancelled) {
+        if (isCancelled.get()) return;
         if (depthLeft < 0) return;
         if (!visitedUrls.add(node.getUrl())) return; 
 
@@ -71,32 +77,28 @@ public class ContentExtractor {
 
         int count = 0;
         for (String linkUrl : data.foundLinks()) {
-            // 數量限制
+            if (isCancelled.get()) return;
             if (count >= MAX_LINKS_PER_PAGE) break; 
             
-            // 🔥【關鍵修改】嚴格過濾垃圾連結
             if (isJunkLink(linkUrl)) continue;
 
             String linkDomain = getDomainName(linkUrl);
             
             if (linkDomain != null && linkDomain.equals(targetDomain) && !visitedUrls.contains(linkUrl)) {
-                // 創建子節點時只包含URL，其他欄位由爬蟲填充
                 WebTree childNode = new WebTree(linkUrl);
                 node.addChild(childNode);
                 
                 try { Thread.sleep(250); } catch (Exception e) {}
                 
-                crawlRecursive(childNode, targetDomain, depthLeft - 1, visitedUrls);
+                crawlRecursive(childNode, targetDomain, depthLeft - 1, visitedUrls, isCancelled);
                 count++;
             }
         }
     }
 
-    // 🛑 超級過濾器 (黑名單)
     private boolean isJunkLink(String url) {
         String lower = url.toLowerCase();
         
-        // 1. 影片與社交媒體 (你指定的 YouTube 在這)
         if (lower.contains("youtube.com") || lower.contains("youtu.be") || 
             lower.contains("facebook.com") || lower.contains("instagram.com") || 
             lower.contains("twitter.com") || lower.contains("tiktok.com") ||
@@ -104,22 +106,19 @@ public class ContentExtractor {
             return true;
         }
 
-        // 2. 需要登入或驗證的頁面 (防止卡在登入畫面)
         if (lower.contains("/login") || lower.contains("/signin") || lower.contains("/sign-in") ||
             lower.contains("/signup") || lower.contains("/register") || lower.contains("/auth") ||
             lower.contains("/password") || lower.contains("/account") || lower.contains("/profile") ||
-            lower.contains("/verification") || lower.contains("/challenge") || // 驗證碼頁面
+            lower.contains("/verification") || lower.contains("/challenge") ||
             lower.contains("/wishlist") || lower.contains("/favorites")) {
             return true;
         }
         
-        // 3. 購物車與結帳
         if (lower.contains("/cart") || lower.contains("/checkout") || lower.contains("/basket") || 
             lower.contains("/order")) {
             return true;
         }
         
-        // 4. 無意義的資訊頁 (Help, Contact, Legal)
         if (lower.contains("help") || lower.contains("contact") || lower.contains("support") ||
             lower.contains("faq") || lower.contains("delivery") || lower.contains("shipping") ||
             lower.contains("returns") || lower.contains("size-guide") || lower.contains("size-chart") ||
@@ -143,4 +142,3 @@ public class ContentExtractor {
         } catch (Exception e) { return null; }
     }
 }
-

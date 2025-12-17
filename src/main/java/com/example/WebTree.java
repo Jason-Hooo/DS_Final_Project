@@ -3,19 +3,14 @@ package com.example;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * 類別 2: 網站樹 (WebTree)
- * 它的工作：定義樹狀結構，包含 URL、內容，以及子節點列表
- * (此類別無需變動)
- */
 public class WebTree {
 
     private String url;
-    private String title;      // 頁面標題
-    private String snippet;    // 頁面摘要
-    private String thumbnail;  // 縮圖網址
-    private String content;    // 該頁面的純文字內容
-    private List<WebTree> children; // 該頁面下的子連結 (節點)
+    private String title;
+    private String snippet;
+    private String thumbnail;
+    private String content;
+    private List<WebTree> children;
     private double score;
 
     public WebTree(String url) {
@@ -23,12 +18,11 @@ public class WebTree {
         this.title = "";
         this.snippet = "";
         this.thumbnail = "";
-        this.content = null; // 預設為 null，等待爬取
+        this.content = null;
         this.children = new ArrayList<>();
         this.score = 0;
     }
     
-    // 帶有標題和摘要的建構子
     public WebTree(String url, String title, String snippet, String thumbnail) {
         this.url = url;
         this.title = title != null ? title : "";
@@ -39,14 +33,10 @@ public class WebTree {
         this.score = 0;
     }
 
-    // --- Getter 和 Setter ---
-    // (Gson 函式庫會自動使用 these Getter 來序列化 JSON)
-
     public String getUrl() {
         return url;
     }
 
-    // Getters and Setters for all fields
     public String getTitle() {
         return title;
     }

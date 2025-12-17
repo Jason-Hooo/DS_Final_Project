@@ -1,89 +1,96 @@
-package com.example; // 記得改成你的 package
+package com.example;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import dev.langchain4j.model.chat.ChatLanguageModel;
-import dev.langchain4j.model.openai.OpenAiChatModel;
 
 public class ScoreCalculator {
 
-    // 1. LLM 快取
-    private static final Map<String, List<String>> LLM_CACHE = new ConcurrentHashMap<>();
+    private static final Set<String> SHOPPING_DOMAINS = new HashSet<>(Arrays.asList(
+        "shopee.tw", "momo.com.tw", "pchome.com.tw", "ruten.com.tw", 
+        "books.com.tw", "rakuten.com.tw", "carousell.com.tw", "biggo.com.tw", 
+        "feebee.com.tw", "findprice.com.tw", "taobao.com", "amazon.com",
+        "coupang.com", "costco.com.tw", "buy123.com.tw", "pcone.com.tw",
+        "etmall.com.tw", "friday.tw", "yahoo.com"
+    ));
 
-    // 2. LLM 模型實例 (建議設為 Static，避免每次計算都重新建立連線)
-    private static ChatLanguageModel chatModel;
+    private static final List<String> SHOPPING_URL_PATHS = List.of(
+        "/products/", "/item/", "/goods/", "/pdp/", "/mall/", "/product/", "/view/"
+    );
 
-    // TODO: 請填入你的 Groq API Key
-    private static final String API_KEY = "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"; 
-
-    // 初始化模型 (只執行一次)
-    static {
-        if (API_KEY != null && !API_KEY.contains("填在這裡")) {
-            chatModel = OpenAiChatModel.builder()
-                .apiKey(API_KEY)
-                .baseUrl("https://api.groq.com/openai/v1")
-                .modelName("llama-3.3-70b-versatile") // Groq 目前最強免費模型
-                .temperature(0.5) // 降低隨機性，讓答案更精準
-                .timeout(java.time.Duration.ofSeconds(10)) // 設定超時，避免卡死
-                .build();
-        }
-    }
-
-    // 3. 鞋類評價專用詞庫 (加分項)
     private static final List<String> EVALUATION_KEYWORDS = List.of(
         "好穿", "舒適", "軟彈", "踩屎感", "Q彈", "回彈", "透氣", "包覆", "穩定", "抓地", "支撐", "神鞋", "必買", "CP值", "腳感",
         "磨腳", "咬腳", "太硬", "太重", "悶熱", "打滑", "版型偏小", "版型偏大", "壓腳背", "掉跟"
     );
 
-    // 4. 電商/交易黑名單 (扣分項)
     private static final List<String> SHOPPING_KEYWORDS = List.of(
         "購物", "拍賣", "商城", "售價", "價格", "下單", "免運", "現貨", "代購", "二手", 
-        "賣場", "加入購物車", "立即購買", "Shop", "Price", "Sale", "Cart", "Buy"
+        "賣場", "加入購物車", "立即購買", "shop", "price", "sale", "cart", "buy"
     );
 
-    /**
-     * 核心計算方法
-     */
-    public static double calculate(String keyword, List<String> expandedKeywords, String title, String content) {
+    public static double calculate(String url, String keyword, List<String> expandedKeywords, String title, String content) {
         if (content == null || content.isEmpty()) return 0.0;
-        
+
+        if (isShoppingUrl(url)) {
+            return -1000.0;
+        }
+
         String lowerTitle = (title != null) ? title.toLowerCase() : "";
         String lowerContent = content.toLowerCase();
         String lowerKeyword = keyword.toLowerCase();
 
-        // --- 步驟 1: 電商屠殺 ---
         if (isShoppingPattern(lowerTitle, lowerContent)) {
-            // System.out.println("偵測到電商/交易網站: " + title);
-            return 1.0; 
+            return -500.0;
         }
-        
+
+        double score = 0.0;
         Set<String> allTargetWords = new HashSet<>(expandedKeywords);
         allTargetWords.add(lowerKeyword);
 
-        // --- 步驟 3: 計算分數 ---
-        double score = 0.0;
-
-        // A. 關鍵字命中
         for (String word : allTargetWords) {
-            score += (countOccurrences(lowerContent, word) * 2.0);
+            score += (countOccurrences(lowerContent, word.toLowerCase()) * 1.0);
         }
 
-        // B. 評價詞命中
         for (String evalWord : EVALUATION_KEYWORDS) {
-            score += (countOccurrences(lowerContent, evalWord) * 1.5);
+            score += (countOccurrences(lowerContent, evalWord) * 10.0);
         }
 
-        // C. 標題加權
         if (lowerTitle.contains(lowerKeyword)) {
-            score += 50.0;
+            score += 5.0;
         }
 
         return score;
     }
 
+    private static boolean isShoppingUrl(String urlString) {
+        if (urlString == null || urlString.isEmpty()) return false;
+        try {
+            String lowerUrl = urlString.toLowerCase();
+            URI uri = new URI(lowerUrl);
+            String host = uri.getHost();
+            if (host == null) return false;
+
+            for (String domain : SHOPPING_DOMAINS) {
+                if (host.equals(domain) || host.endsWith("." + domain)) {
+                    return true;
+                }
+            }
+
+            String path = uri.getPath();
+            if (path != null) {
+                for (String pathKey : SHOPPING_URL_PATHS) {
+                    if (path.contains(pathKey)) return true;
+                }
+            }
+        } catch (URISyntaxException e) {
+            return urlString.contains("shop") || urlString.contains("product") || urlString.contains("mall");
+        }
+        return false;
+    }
+
     private static boolean isShoppingPattern(String title, String content) {
         for (String badWord : SHOPPING_KEYWORDS) {
-            if (title.contains(badWord.toLowerCase())) {
+            if (title.contains(badWord)) {
                 return true;
             }
         }
@@ -91,11 +98,12 @@ public class ScoreCalculator {
         if (content.contains("加入購物車")) shoppingTermCount += 5;
         if (content.contains("立即購買")) shoppingTermCount += 5;
         if (content.contains("庫存")) shoppingTermCount += 2;
+        if (content.contains("全家取貨") || content.contains("7-11取貨")) shoppingTermCount += 3;
         return shoppingTermCount >= 5;
     }
 
     private static int countOccurrences(String text, String target) {
-        if (target.length() == 0) return 0;
+        if (target == null || target.isEmpty()) return 0;
         int count = 0;
         int idx = 0;
         while ((idx = text.indexOf(target, idx)) != -1) {

@@ -7,7 +7,8 @@ import java.util.*;
 public class WordExpander {
     private static final Map<String, List<String>> KEYWORD_CACHE = new HashMap<>();
     private static ChatLanguageModel chatModel;
-    private static final String API_KEY = "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";
+    private static final String API_KEY = "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";
+    // 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
 
     static {
         if (API_KEY != null && !API_KEY.isEmpty()) {
@@ -62,7 +63,6 @@ public class WordExpander {
                 }
             }
 
-            // Add original keyword and cache the result
             keywords.add(lowerKeyword);
             KEYWORD_CACHE.put(lowerKeyword, keywords);
             return keywords;
@@ -70,6 +70,42 @@ public class WordExpander {
         } catch (Exception e) {
             System.err.println("❌ 關鍵字擴展失敗: " + e.getMessage());
             return Collections.singletonList(lowerKeyword);
+        }
+    }
+
+    public static String correctKeyword(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return keyword;
+        }
+
+        if (chatModel == null) {
+            System.err.println("⚠️ Warning: LLM Model not initialized. Skipping keyword correction.");
+            return keyword;
+        }
+
+        try {
+            String prompt = String.format(
+                "你是一個搜尋引擎關鍵字修正助手。請檢查使用者的搜尋關鍵字「%s」是否有錯別字或語意不清。\n" +
+                "規則：\n" +
+                "1. 如果關鍵字有明顯錯別字（例如 'iphoe' -> 'iphone', 'addidas' -> 'adidas'），請回傳修正後的正確關鍵字。\n" +
+                "2. 如果關鍵字看起來正確，請直接回傳原本的關鍵字。\n" +
+                "3. 只回傳修正後的關鍵字，不要有任何解釋、標點符號或額外文字。\n" +
+                "4. 如果是英文，請維持適當的大小寫慣例（通常全小寫或首字大寫皆可，視情況而定）。\n" +
+                "範例輸入：iphoe\n" +
+                "範例輸出：iphone\n" +
+                "現在請輸出：",
+                keyword
+            );
+
+            String corrected = chatModel.generate(prompt).trim();
+            corrected = corrected.replaceAll("^[\"']+|[\"']+$", "");
+            
+            System.out.println("🔍 關鍵字檢查: " + keyword + " → " + corrected);
+            return corrected;
+
+        } catch (Exception e) {
+            System.err.println("❌ 關鍵字修正失敗: " + e.getMessage());
+            return keyword;
         }
     }
 }

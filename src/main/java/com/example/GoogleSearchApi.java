@@ -67,7 +67,6 @@ public class GoogleSearchApi {
                         String snippet = item.optString("snippet", "");
                         String thumbnail = "";
                         
-                        // 嘗試獲取縮圖網址
                         if (item.has("pagemap") && item.getJSONObject("pagemap").has("cse_thumbnail")) {
                             JSONArray thumbnails = item.getJSONObject("pagemap").getJSONArray("cse_thumbnail");
                             if (thumbnails.length() > 0) {
@@ -75,7 +74,6 @@ public class GoogleSearchApi {
                             }
                         }
                         
-                        // 如果沒有縮圖，使用 favicon
                         if (thumbnail.isEmpty()) {
                             String domain = new URL(linkUrl).getHost();
                             thumbnail = String.format("https://www.google.com/s2/favicons?domain=%s&sz=128", domain);

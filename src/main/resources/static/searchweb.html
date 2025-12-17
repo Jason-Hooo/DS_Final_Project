@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>鞋子評價搜尋引擎</title>
+    <title>SHOOGLE</title>
     <link rel="stylesheet" href="style.css">
 </headß
 
@@ -32,7 +32,7 @@
 
     <div class="main-container">
         <div class="search-box-wrapper">
-            <h1> 鞋類評價搜尋引擎 <img src="images/search-icon.png" alt="搜尋" class="search-icon"></h1>
+            <h1> SHOOGLE <img src="images/search-icon.png" alt="搜尋" class="search-icon"></h1>
 
             <form id="searchForm">
                 <input type="text" id="keyword" placeholder="請輸入搜尋內容 (例如: puma speedcat)" required>
@@ -43,6 +43,8 @@
                 <div class="loader"></div>
                 <p class="loading-text">正在搜尋中，請稍候...</p>
             </div>
+
+            <p id="correctionMsg" class="correction-msg" style="display: none;"></p>
 
             <div id="expandedKeywordsContainer" class="expanded-keywords-container" style="display: none;"></div>
 
@@ -57,20 +59,17 @@
 
 
     <script>
-        // 全域變數
         let allResults = [];
         let currentPage = 1;
         const itemsPerPage = 5;
+        let currentSearchKeyword = "";
 
-        // --- 新增：點擊標籤後自動填入並搜尋的函式 ---
         function triggerSearch(newKeyword) {
             const input = document.getElementById('keyword');
             const form = document.getElementById('searchForm');
             
-            // 1. 設定輸入框文字
             input.value = newKeyword;
             
-            // 2. 觸發表單送出 (這會觸發下方的 submit listener)
             if (form.requestSubmit) {
                 form.requestSubmit();
             } else {
@@ -81,19 +80,19 @@
         document.getElementById('searchForm').addEventListener('submit', function (e) {
             e.preventDefault();
             const keyword = document.getElementById('keyword').value;
+            currentSearchKeyword = keyword;
 
-            // UI 初始化
             document.getElementById('resultsContainer').innerHTML = '';
             document.getElementById('pagination').innerHTML = '';
             document.getElementById('expandedKeywordsContainer').innerHTML = '';
             document.getElementById('expandedKeywordsContainer').style.display = 'none';
             document.getElementById('noResult').style.display = 'none';
+            document.getElementById('correctionMsg').style.display = 'none';
             document.getElementById('loading').style.display = 'block';
 
             allResults = [];
             currentPage = 1;
 
-            // 呼叫 API
             fetch(`/api/search-tree?q=${encodeURIComponent(keyword)}`)
                 .then(res => {
                     if (res.status === 202) pollResults();
@@ -101,9 +100,12 @@
                 });
         });
 
-        // 輪詢資料
+        window.addEventListener('beforeunload', function () {
+            navigator.sendBeacon('/api/stop');
+        });
+
         let attempts = 0;
-        const maxAttempts = 60; // 等待 120 秒
+        const maxAttempts = 60;
 
         function pollResults() {
             setTimeout(() => {
@@ -112,21 +114,31 @@
                     .then(data => {
                         const results = Array.isArray(data) ? data : (data.results || []);
                         const expandedKeywords = data.expandedKeywords || [];
+                        const status = data.status || 'processing';
+                        const query = data.query;
 
-                        // 情況 A: 資料是空的，且還沒超時 -> 繼續等
-                        if (results.length === 0 && attempts < maxAttempts) {
+                        if (status === 'completed' && query && currentSearchKeyword && 
+                            query.trim().toLowerCase() !== currentSearchKeyword.trim().toLowerCase()) {
+                            const msgEl = document.getElementById('correctionMsg');
+                            msgEl.style.display = 'block';
+                            msgEl.innerHTML = `已自動修正關鍵字為: <strong>${query}</strong>`;
+                        }
+
+                        if (status === 'processing') {
                             attempts++;
                             console.log(`等待資料中... (${attempts}/${maxAttempts})`);
-                            pollResults();
+                            if (attempts < maxAttempts) {
+                                pollResults();
+                            } else {
+                                document.getElementById('loading').style.display = 'none';
+                                document.getElementById('noResult').style.display = 'block';
+                            }
                         }
-                        // 情況 B: 抓到資料了！
-                        else if (results.length > 0) {
+                        else if (status === 'completed' && results.length > 0) {
                             document.getElementById('loading').style.display = 'none';
 
-                            // 1. 儲存資料
                             allResults = results;
 
-                            // 2. 顯示擴展關鍵字 (修改處：onclick 改為呼叫 triggerSearch)
                             if (expandedKeywords.length > 0) {
                                 const kwContainer = document.getElementById('expandedKeywordsContainer');
                                 kwContainer.style.display = 'flex';
@@ -135,13 +147,11 @@
                                 ).join('');
                             }
 
-                            // 3. 渲染頁面
                             renderPage(1);
                             renderPagination();
 
                             attempts = 0;
                         }
-                        // 情況 C: 超時
                         else {
                             document.getElementById('loading').style.display = 'none';
                             document.getElementById('noResult').style.display = 'block';
