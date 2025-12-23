@@ -4,10 +4,10 @@ import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import java.util.*;
 
-public class WordExpander {
+public class LlamaService {
     private static final Map<String, List<String>> KEYWORD_CACHE = new HashMap<>();
     private static ChatLanguageModel chatModel;
-    private static final String API_KEY = "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";
+    private static final String API_KEY = "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";
     // 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
 
     static {

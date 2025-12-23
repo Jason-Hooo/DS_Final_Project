@@ -109,7 +109,7 @@ public class ApiMain {
         System.out.println(" 開始執行背景爬蟲任務...");
         long startTime = System.currentTimeMillis();
 
-        String keyword = WordExpander.correctKeyword(originalKeyword);
+        String keyword = LlamaService.correctKeyword(originalKeyword);
         if (SHOULD_STOP) return;
         
         if (!keyword.equalsIgnoreCase(originalKeyword)) {
@@ -119,11 +119,11 @@ public class ApiMain {
 
         GoogleSearchApi searchApi = new GoogleSearchApi(GOOGLE_API_KEY, GOOGLE_CX_ID);
 
-        String searchQueryNormal = keyword + "評價"; 
+        String searchQueryNormal = keyword + "鞋" + "評價"; 
         int targetRootUrlCountNormal = 6;
         int maxDepthNormal = 0; 
 
-        String searchQueryForum = keyword + " site:ptt.cc OR site:dcard.tw"; 
+        String searchQueryForum = keyword + "鞋" + " site:ptt.cc OR site:dcard.tw"; 
         int targetRootUrlCountForum = 6; 
         int maxDepthForum = 0; 
 
@@ -172,7 +172,7 @@ public class ApiMain {
             try {
                 if (SHOULD_STOP) return;
                 System.out.println("正在擴展關鍵字...");
-                List<String> expandedKeywords = WordExpander.expandKeywords(keyword);
+                List<String> expandedKeywords = LlamaService.expandKeywords(keyword);
                 CACHED_EXPANDED_KEYWORDS = expandedKeywords;
                 
                 System.out.println("🔍 [DEBUG] 開始計算分數，使用關鍵字: " + keyword);
