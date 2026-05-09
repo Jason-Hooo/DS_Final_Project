@@ -2,15 +2,16 @@ package com.example;
 
 import com.google.gson.Gson;
 import com.microsoft.playwright.*;
+import io.github.cdimascio.dotenv.Dotenv;
 import java.util.*;
 import java.util.concurrent.*;
 import static spark.Spark.*;
 
 public class ApiMain {
 
-    private static final String GOOGLE_API_KEY = "AIzaSyCqNnL9jwvx80f_RYkv9j6nsAhRFnAS384";
-    // AIzaSyDLmb1Ft_jm-i1A2xN2vyhrfFbTx6DRekM
-    private static final String GOOGLE_CX_ID = "053fe703ca8d645f3";
+    private static final Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
+    private static final String GOOGLE_API_KEY = dotenv.get("GOOGLE_API_KEY");
+    private static final String GOOGLE_CX_ID = dotenv.get("GOOGLE_CX_ID");
 
     private static final List<String> LAUNCH_ARGS = Arrays.asList(
         "--disable-blink-features=AutomationControlled",

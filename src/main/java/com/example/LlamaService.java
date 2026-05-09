@@ -2,13 +2,15 @@ package com.example;
 
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+import io.github.cdimascio.dotenv.Dotenv;
 import java.util.*;
 
 public class LlamaService {
     private static final Map<String, List<String>> KEYWORD_CACHE = new HashMap<>();
     private static ChatLanguageModel chatModel;
-    private static final String API_KEY = "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";
-    // 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
+    
+    private static final Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
+    private static final String API_KEY = dotenv.get("LLAMA_API_TOKEN");
 
     static {
         if (API_KEY != null && !API_KEY.isEmpty()) {
